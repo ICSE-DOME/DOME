@@ -9,6 +9,7 @@ Our project is public at: <https://github.com/ICSE-DOME/DOME>
 &ensp;&ensp;[2.2 Dataset](#22-Dataset)<br>
 &ensp;&ensp;[2.3 Comment Intent Labeling Tool](#23-Comment-Intent-Labeling-Tool)<br>
 &ensp;&ensp;[2.4 Code Comment Generator](#24-Code-Comment-Generator)<br>
+3. [Application](#3-Application)<br>
 
 ## 1 Project Summary
 Existing automatic code comment generators mainly focus on producing a general description of functionality for a given code snippet without considering developer intentions. However, in real-world practice, comments are complicated, which often contain information reflecting various intentions of developers, e.g.,  functionality summarization, design rationale, implementation details, code properties, etc. 
@@ -43,7 +44,7 @@ To train our comment-intent labeling tool, we randomly sample 20K code-comment p
 ```
 python src/comment_classifier/train.py
 ```
-3. Use the well-trained COIN to annotate the two benchmark dataset automatically.
+3. Use the well-trained COIN to annotate the two benchmark datasets automatically.
 ```
 python src/comment_classifier/prediction.py
 ```
@@ -62,3 +63,32 @@ python train.py
 ```
 python prediction.py
 ```
+
+## 3 Application
+### Using COIN to predict intent for a given comment
+```
+>>> classifier = commentClassifier('./comment_classifier/pretrained_codebert', 6, 0.2)
+>>> classifier.load_state_dict(torch.load("./comment_classifier/saved_model/comment_classifier.pkl"))
+>>> classifier.cuda()
+
+>>> comment = 'Starts the background initialization'
+>>> tokenizer = AutoTokenizer.from_pretrained('./comment_classifier/pretrained_codebert')
+>>> logits = classifier(coin_preprocess(tokenizer, comment))
+>>> class_name[int(torch.argmax(logits, 1))]
+what
+```
+### using DOME to generate a comment given a code snippet and the user intent
+```
+>>> generator = Generator(config.d_model, config.d_intent, config.d_ff, config.head_num, config.layer_num, config.vocab_size, config.max_stat_num, config.max_comment_len, config.clip_dist_code, config.clip_dist_stat, config.eos_token, config.intent_num, config.dropout, None)
+>>> generator.load_state_dict(torch.load("./comment_generator/saved_model/funcom/dome_parameters.pkl"))
+>>> generator.cuda()
+
+>>> code = 'public int start ( ) throws IO Exception { synchronized ( this . monitor ) { Assert . state ( this . server Thread == null , "Server already started" ) ; Server Socket Channel server Socket Channel = Server Socket Channel . open ( ) ; server Socket Channel . socket ( ) . bind ( new Inet Socket Address ( this . listen Port ) ) ; int port = server Socket Channel . socket ( ) . get Local Port ( ) ; logger . trace ( Log Message . format ( "Listening for TCP traffic to tunnel on port %s" , port ) ) ; this . server Thread = new Server Thread ( server Socket Channel ) ; this . server Thread . start ( ) ; return port ; } }'
+>>> exemplar = "main processing method for the timeserver object"
+>>> intent = 'why'
+>>> comment_why = generator(dome_preprocess(config.tokenizer, code, exemplar, intent))[0]
+>>> config.tokenizer.decode(comment_why)
+start listening for incoming connections
+```
+
+For more detailed usage and examples, please refer to the [src/Usage.ipynb](https://github.com/ICSE-DOME/DOME/blob/master/src/Usage.ipynb).
